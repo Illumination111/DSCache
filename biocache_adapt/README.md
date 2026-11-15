@@ -1,3 +1,5 @@
+> **Qwen2.5-VL adaptation (2026-11-15):** [native streaming entry, protocol, tests and porting changes](QWEN25_STREAMING.md). Earlier adapter interfaces are documented below.
+
 # DSCache BioCache streaming adapter
 
 `biocache_adapt` 把 DSCache 接入统一的因果流式视频 QA 协议。视频解码在包外：

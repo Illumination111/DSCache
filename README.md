@@ -1,3 +1,5 @@
+> **BioCache fork:** [Qwen2.5-VL-7B streaming adapter](biocache_adapt/QWEN25_STREAMING.md), with CPU integration tests and memory accounting.
+
 # DSCache
 This repository provides official implementation of:
 > **Decouple and Cache: KV Cache Construction for Streaming Video Understanding (ICML 2026)**  

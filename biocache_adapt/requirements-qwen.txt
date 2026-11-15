@@ -1,0 +1,7 @@
+torch>=2.7,<2.8
+torchvision>=0.22,<0.23
+transformers==4.57.3
+numpy>=1.24
+Pillow>=10
+psutil>=5.9
+threadpoolctl>=3.1
