@@ -1,13 +1,15 @@
+> For the byte-budgeted MemInStream driver, see [MEMINSTREAM.md](MEMINSTREAM.md).
+
 # Native Qwen2.5-VL streaming adapter
 
 Use `biocache_adapt.QwenStreamAdapter` for the common Qwen2.5-VL backbone. Each fork contains a standalone runtime and a method-specific `qwen_policy.py`. Original upstream and legacy entry points remain available.
 
 ## Environment and tests
 
-Python 3.11, PyTorch 2.7.1+cu128, Transformers 4.57.3. GPU inference uses frozen BF16 weights and native SDPA, GQA, vision encoding and MRoPE.
+Python 3.11, PyTorch 2.9.0+cu128, Transformers 4.57.3. GPU inference uses frozen BF16 weights and native SDPA, GQA, vision encoding and MRoPE.
 
 ```bash
-conda activate biocache
+conda activate biocache-baseline-DSCache
 pip install -r biocache_adapt/requirements-qwen.txt
 python -m biocache_adapt.test_qwen_stream
 ```
@@ -61,7 +63,7 @@ Defaults track native growth; they are **not equal-total-byte budgets**. Retriev
 
 ## Method integration
 
-Keeps 4 recent temporal pairs as visual features and 16 historical pairs as long-term FIFO KV. Each short-buffer eviction writes one pair to long-term KV. Each query freshly prefills recent features onto a private long-cache copy. The frozen vision encoder runs once per pair; recent features replace the original raw-frame short buffer. Pair counts differ from original single-frame CLI counts. Native source-position MRoPE replaces upstream global forward patches.
+Without a byte budget, the legacy defaults keep 4 recent temporal pairs as visual features and 16 historical pairs as long-term FIFO KV. The MemInStream driver instead derives historical capacity from the total-byte budget described in MEMINSTREAM.md. Each short-buffer eviction writes one pair to long-term KV. Each query freshly prefills recent features onto a private long-cache copy. The frozen vision encoder runs once per pair; recent features replace the original raw-frame short buffer. Pair counts differ from original single-frame CLI counts. Native source-position MRoPE replaces upstream global forward patches.
 
 ## Validation limits
 

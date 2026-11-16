@@ -1,43 +1,56 @@
 {
-  "dependencies": {
-    "torch": "2.11.0",
-    "torchvision": "0.26.0",
-    "transformers": "5.10.2",
-    "numpy": "1.26.4",
-    "pillow": "11.1.0",
-    "psutil": "5.9.0",
-    "threadpoolctl": "3.5.0"
+  "timestamp": "2026-11-16T17:12:21.108082+08:00",
+  "validation": "14 CPU tests: native random tiny Qwen plus real synthetic video; no 7B GPU run",
+  "tests": 14,
+  "passed": true,
+  "log": "The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.\n.............{\"method\": \"DSCache/Qwen2.5-VL\", \"validation\": \"native tiny Qwen vision + decoder\", \"persistent_bytes\": {\"cpu\": 49536, \"cuda\": 0, \"metadata\": 3052, \"total\": 52588}, \"status\": \"passed\"}\n{\"started_at\": \"2026-11-16T17:09:31.414679+08:00\", \"phase\": \"answer\", \"completed\": 1, \"failed\": 0, \"total\": 1, \"videos_total\": 1, \"videos_completed\": 0, \"resumed_at\": null, \"video\": \"./videos/test.mp4\", \"video_index\": 1, \"query_index\": 0, \"query_time\": 0.5, \"scored\": 1, \"correct\": 0, \"accuracy_scored\": 0.0, \"elapsed_seconds\": 0.14805936813354492}\n{\n  \"overall\": {\n    \"total\": 1,\n    \"completed\": 1,\n    \"missing\": 0,\n    \"coverage\": 1.0,\n    \"scored\": 1,\n    \"unscored_completed\": 0,\n    \"correct\": 0,\n    \"accuracy_scored\": 0.0,\n    \"correct_over_total_lower_bound\": 0.0,\n    \"invalid_format\": 1\n  },\n  \"objective\": {\n    \"total\": 1,\n    \"completed\": 1,\n    \"missing\": 0,\n    \"coverage\": 1.0,\n    \"scored\": 1,\n    \"unscored_completed\": 0,\n    \"correct\": 0,\n    \"accuracy_scored\": 0.0,\n    \"correct_over_total_lower_bound\": 0.0,\n    \"invalid_format\": 1\n  },\n  \"by_dataset\": {\n    \"fixture\": {\n      \"total\": 1,\n      \"completed\": 1,\n      \"missing\": 0,\n      \"coverage\": 1.0,\n      \"scored\": 1,\n      \"unscored_completed\": 0,\n      \"correct\": 0,\n      \"accuracy_scored\": 0.0,\n      \"correct_over_total_lower_bound\": 0.0,\n      \"invalid_format\": 1\n    }\n  }\n}\n{\n  \"overall\": {\n    \"total\": 1,\n    \"completed\": 1,\n    \"missing\": 0,\n    \"coverage\": 1.0,\n    \"scored\": 1,\n    \"unscored_completed\": 0,\n    \"correct\": 0,\n    \"accuracy_scored\": 0.0,\n    \"correct_over_total_lower_bound\": 0.0,\n    \"invalid_format\": 1\n  },\n  \"objective\": {\n    \"total\": 1,\n    \"completed\": 1,\n    \"missing\": 0,\n    \"coverage\": 1.0,\n    \"scored\": 1,\n    \"unscored_completed\": 0,\n    \"correct\": 0,\n    \"accuracy_scored\": 0.0,\n    \"correct_over_total_lower_bound\": 0.0,\n    \"invalid_format\": 1\n  },\n  \"by_dataset\": {\n    \"fixture\": {\n      \"total\": 1,\n      \"completed\": 1,\n      \"missing\": 0,\n      \"coverage\": 1.0,\n      \"scored\": 1,\n      \"unscored_completed\": 0,\n      \"correct\": 0,\n      \"accuracy_scored\": 0.0,\n      \"correct_over_total_lower_bound\": 0.0,\n      \"invalid_format\": 1\n    }\n  }\n}\n.\n----------------------------------------------------------------------\nRan 14 tests in 10.163s\n\nOK\n",
+  "environment": {
+    "prefix": "/data/user25101366/.conda/envs/biocache-baseline-DSCache",
+    "torch": "2.9.0+cu128",
+    "torchvision": "0.24.0+cu128",
+    "transformers": "4.57.3",
+    "tokenizers": "0.22.2",
+    "av": "16.0.1",
+    "psutil": "7.2.2",
+    "threadpoolctl": "3.8.0"
   },
-  "target_config_preflight": {
-    "mode": "meta architecture only; no weights or GPU execution",
-    "model": "/publicdata/model/Qwen2.5-VL-7B-Instruct",
-    "layers": 28,
-    "query_heads": 28,
-    "kv_heads": 4,
-    "head_dim": 128,
-    "parameters": 8292166656,
-    "tokens_per_second": 2
+  "environment_transition": {
+    "transformers": "4.49.0 -> 4.57.3",
+    "tokenizers": "0.21.4 -> 0.22.2",
+    "torch": "retained 2.9.0+cu128"
   },
-  "timestamp": "2026-11-15T22:34:38.362157+08:00",
-  "validation": "native random tiny Qwen; CPU only",
-  "result": {
-    "method": "DSCache",
-    "returncode": 0,
-    "log": "The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.\n.....\n----------------------------------------------------------------------\nRan 5 tests in 3.206s\n\nOK\n{\"method\": \"DSCache/Qwen2.5-VL\", \"validation\": \"native tiny Qwen vision + decoder\", \"persistent_bytes\": {\"cpu\": 43520, \"cuda\": 0, \"metadata\": 1819, \"total\": 45339}, \"status\": \"passed\"}\n",
-    "base_commit": "6d18671cea8be20159f101b11ebb3cf40df82c14",
-    "source_sha256": {
-      "biocache_adapt/__init__.py": "a144e8c4b3fadd11039a1b0d245fee86d18d9e7cb45215578712cfbdd427cdc8",
-      "biocache_adapt/budget.py": "b737f2abc5f2c8ac61497d272e136c9e4151f3ade5b54a8a07bc8f64f7b19d06",
-      "biocache_adapt/dscache_adapter.py": "56b50132c3af909d3abdf010d0767343ac73a7dd1edb6aa4d73cde9ac1653e68",
-      "biocache_adapt/manifest.py": "c0023d20f01cfaa4dabb57c94ab8a9ade7757024c4fe06509cb6cc654ab00982",
-      "biocache_adapt/meter.py": "cdddbdd3bda8f1ba72560778259adb7946e836d6194e6123b84fb75b58df1d38",
-      "biocache_adapt/protocol.py": "ca9a237e0fb5f4365a0992293a1fc7b91a9fe45f6bc1e3c91020cb9e0e30d4a7",
-      "biocache_adapt/qwen_policy.py": "27ef49390bee9d16818d3a4a29eb94c0b0d6cdf11bc5b579b9e1a6c866cc03ac",
-      "biocache_adapt/qwen_stream.py": "19fead55efb653122a6df3f82046209522d2d9b061aba3f8402b983564dce046",
-      "biocache_adapt/run_ovobench.py": "17bd5e54866fba390af03248f05e146c830d564e18ce27d756e210748f51ac1f",
-      "biocache_adapt/scoring.py": "703d8ef992ebbb27d9be7d9097cd2e85ae7c36845453193de3efa54dfbe2b667",
-      "biocache_adapt/test_qwen_stream.py": "37123cd202a258ca1782569f726b791ae9bb277f487e810937962eda86195d80"
+  "dataset_prepare": {
+    "videos": 3377,
+    "questions": 3795,
+    "excluded": 2,
+    "modes": {
+      "single": 3759,
+      "multiple": 36
     },
-    "tests": 5
+    "source_sha256": "003fd5ab1d080c45a223916633555f87ffe0a1ef2a4f49e08b422a89eac83b20",
+    "video_metadata_sha256": "d8e4392c03ebcb6387d0be7f3b35069da6dfd0f613e0089566a13d1b3c959e0e"
+  },
+  "source_sha256": {
+    "biocache_adapt/__init__.py": "a144e8c4b3fadd11039a1b0d245fee86d18d9e7cb45215578712cfbdd427cdc8",
+    "biocache_adapt/budget.py": "b737f2abc5f2c8ac61497d272e136c9e4151f3ade5b54a8a07bc8f64f7b19d06",
+    "biocache_adapt/dscache_adapter.py": "56b50132c3af909d3abdf010d0767343ac73a7dd1edb6aa4d73cde9ac1653e68",
+    "biocache_adapt/manifest.py": "c0023d20f01cfaa4dabb57c94ab8a9ade7757024c4fe06509cb6cc654ab00982",
+    "biocache_adapt/meminstream.py": "3f641912670de941502c76cb4edb09ca9d6a769e5014cc23519585537c27af7e",
+    "biocache_adapt/meminstream_prompts.py": "e4546cd5385bbe4d16c748d817f8e577e861f1573fbadf52b83650e5a9b15ec9",
+    "biocache_adapt/meminstream_scoring.py": "b15aae3395d9d963adff621196458f3e57356568a777bc5d11eaa5798711d76a",
+    "biocache_adapt/meminstream_supervise.py": "69fcb38310f0e6a746b5457e1488bdf943a652a521bcd193ab0a06c37c39be39",
+    "biocache_adapt/meter.py": "cdddbdd3bda8f1ba72560778259adb7946e836d6194e6123b84fb75b58df1d38",
+    "biocache_adapt/protocol.py": "ca9a237e0fb5f4365a0992293a1fc7b91a9fe45f6bc1e3c91020cb9e0e30d4a7",
+    "biocache_adapt/qwen_policy.py": "a18105f55f5674617c5738ee38d7f30248addc9d193f4a8f4536a331a592ee76",
+    "biocache_adapt/qwen_stream.py": "fd3308d7a59d440b22ad4dd369d20c7713d896e30586e5ce0aa0f18b08d06a6a",
+    "biocache_adapt/run_ovobench.py": "17bd5e54866fba390af03248f05e146c830d564e18ce27d756e210748f51ac1f",
+    "biocache_adapt/scoring.py": "703d8ef992ebbb27d9be7d9097cd2e85ae7c36845453193de3efa54dfbe2b667",
+    "biocache_adapt/test_meminstream_driver.py": "bce72c027f1fe9c90dadb95cea08fc5d9fa541904f6deb11c48e0e46984f1a1a",
+    "biocache_adapt/test_meminstream_prompts.py": "f9471dfa3dd4f38ba547f20a62f7f108e04c67565d23abe5fd7d2b218459793d",
+    "biocache_adapt/test_qwen_stream.py": "c36a5662a21f0994110a7a3f623c97499894555e4730be2b4b41f2f76a1c84d7"
+  },
+  "legacy_dry_run": {
+    "passed": true,
+    "model_loaded": false
   }
 }

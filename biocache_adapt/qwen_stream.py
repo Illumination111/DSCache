@@ -36,6 +36,8 @@ class StreamConfig:
     total_budget_bytes: int | None = None
     # Algorithm-specific knobs are explicit; these are not equal-byte budgets.
     cache_tokens: int = 6000
+    decoded_frame_reserve_bytes: int = 0
+    budget_metadata_reserve_bytes: int = 65536
     recent_tokens: int = 392
     retain_tokens: int = 50
     retrieval_tokens: int = 12544
@@ -54,6 +56,8 @@ class StreamConfig:
                      'retain_tokens', 'retrieval_tokens', 'group_size', 'long_pairs'):
             if getattr(self, name) <= 0:
                 raise ValueError(f'{name} must be positive')
+        if self.decoded_frame_reserve_bytes < 0 or self.budget_metadata_reserve_bytes < 0:
+            raise ValueError('budget reserves must be nonnegative')
         if not 1 <= self.cpu_threads <= 2:
             raise ValueError('at most two CPU threads are allowed')
         if self.quant_bits not in (2, 4):
@@ -138,7 +142,9 @@ def slice_cache(cache, start, stop=None):
 def storage_report(tree):
     """Deduplicate physical tensor storage, separately by device; count metadata."""
     seen_objects, seen_storage, result = set(), set(), {'cpu': 0, 'cuda': 0, 'metadata': 0}
+    keepalive = []  # prevent temporary cache-pair container IDs from being reused
     def visit(obj):
+        keepalive.append(obj)
         if id(obj) in seen_objects:
             return
         seen_objects.add(id(obj))
@@ -168,7 +174,11 @@ def storage_report(tree):
                 visit(value)
         else:
             result['metadata'] += __import__('sys').getsizeof(obj)
-    visit(tree)
+    try:
+        visit(tree)
+    finally:
+        keepalive.clear()
+        visit = None  # break the recursive closure cycle deterministically
     result['total'] = sum(result.values())
     return result
 
@@ -544,6 +554,8 @@ class QwenStreamAdapter:
                 'backbone_weight_bytes': storage_report(list(self.model.parameters())),
                 'process': process, 'cpu_affinity': sorted(os.sched_getaffinity(0)),
                 'timing_seconds': dict(self.timings), 'frames_seen': self.frames_seen,
+                'cuda_allocated': torch.cuda.memory_allocated(self.device) if self.device.type == 'cuda' else 0,
+                'cuda_reserved': torch.cuda.memory_reserved(self.device) if self.device.type == 'cuda' else 0,
                 'cuda_peak_allocated': torch.cuda.max_memory_allocated(self.device) if self.device.type == 'cuda' else 0,
                 'cuda_peak_reserved': torch.cuda.max_memory_reserved(self.device) if self.device.type == 'cuda' else 0,
                 'disk_history_bytes': 0, 'budget_violation': self.budget_violation,
@@ -555,6 +567,11 @@ class QwenStreamAdapter:
         report = self.report()
         self.stream_id = None
         self.reset()
+        import gc
+        gc.collect()
+        if self.device.type == 'cuda':
+            torch.cuda.synchronize(self.device)
+            torch.cuda.empty_cache()
         return report
 
     def dispose(self):

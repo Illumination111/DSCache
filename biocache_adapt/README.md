@@ -1,3 +1,5 @@
+> **MemInStream adaptation (2026-11-16):** [byte budgets, causal dataset driver, scoring, resume and environment notes](MEMINSTREAM.md).
+
 > **Qwen2.5-VL adaptation (2026-11-15):** [native streaming entry, protocol, tests and porting changes](QWEN25_STREAMING.md). Earlier adapter interfaces are documented below.
 
 # DSCache BioCache streaming adapter

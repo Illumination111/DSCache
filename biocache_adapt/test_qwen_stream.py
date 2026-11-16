@@ -164,6 +164,62 @@ class NativeQwenTests(unittest.TestCase):
         self.assertEqual(int(positions[1].max()), a.video_origin + 3)
         self.assertEqual(grid.tolist(), [[1, 8, 8]])
 
+    def test_byte_budget_capacity_eviction_and_pending_frame(self):
+        a=self.adapter
+        cfg=a.config
+        cfg.short_pairs=1
+        cfg.decoded_frame_reserve_bytes=112*112*3
+        cfg.budget_metadata_reserve_bytes=32768
+        token_bytes=a.policy.kv_bytes_per_token
+        prefix=2*a.system_cache.get_seq_length()*token_bytes
+        short=16*(56*4+3*8)
+        cfg.total_budget_bytes=prefix+short+cfg.decoded_frame_reserve_bytes+cfg.budget_metadata_reserve_bytes+2*(16*token_bytes+192)
+        for i in range(16):
+            a.push_frames([(float(i),Image.new('RGB',(112,112),(i*10,20,30)))])
+            used=storage_report({'persistent':a.persistent_state(),'static':a.static_extra_state()})['total']
+            self.assertLessEqual(used,cfg.total_budget_bytes)
+        self.assertEqual(a.policy.capacity,2)
+        self.assertEqual(len(a.policy.long_times),2)
+        self.assertEqual(len(a.policy.short),1)
+        self.assertEqual(a.policy.evictions,5)
+        stats=a.policy.stats(a)
+        self.assertEqual(stats['oldest_retained_timestamp'],10.)
+        self.assertEqual(stats['newest_retained_timestamp'],15.)
+        a.close_stream();a.open_stream('smaller-grid')
+        a.push_frames([(0.,Image.new('RGB',(56,56))),(1.,Image.new('RGB',(56,56)))])
+        self.assertGreater(a.policy.capacity,2)
+
+    def test_recent_prefill_matches_single_native_forward(self):
+        from .qwen_stream import clone_cache
+        a=self.adapter
+        a.config.short_pairs=3
+        for i in range(6):a.push_frames([(float(i),Image.new('RGB',(56,56),(i*30,20,40)))])
+        self.assertEqual(a.policy.cache.get_seq_length(),a.system_cache.get_seq_length())
+        feats=torch.cat([x[0] for x in a.policy.short],1)
+        positions=torch.cat([x[1] for x in a.policy.short],2)
+        full=a.forward(feats,clone_cache(a.system_cache),positions).past_key_values
+        cached=a.policy.query_cache(a,None)
+        for (k1,v1),(k2,v2) in zip(pairs(full),pairs(cached)):
+            torch.testing.assert_close(k1,k2,rtol=1e-5,atol=1e-6)
+            torch.testing.assert_close(v1,v2,rtol=1e-5,atol=1e-6)
+        self.assertEqual(a.policy.cache.get_seq_length(),a.system_cache.get_seq_length())
+
+    def test_accounting_releases_references_without_gc(self):
+        import weakref,gc
+        gc.collect();enabled=gc.isenabled();gc.disable()
+        try:
+            tensor=torch.zeros(100);ref=weakref.ref(tensor)
+            storage_report({'tensor':tensor});del tensor
+            self.assertIsNone(ref())
+        finally:
+            if enabled:gc.enable()
+
+    def test_multiple_cache_objects_counted(self):
+        from .qwen_stream import cache_from
+        a=cache_from([(torch.zeros(1,1,2,2),torch.zeros(1,1,2,2))])
+        b=cache_from([(torch.zeros(1,1,3,2),torch.zeros(1,1,3,2))])
+        self.assertEqual(storage_report({'system':a,'history':b})['cpu'],80)
+
     def test_strict_parser_and_storage_aliases(self):
         self.assertTrue(parse_answer('A,C', ['a', 'b', 'c'], True)['valid'])
         self.assertFalse(parse_answer('A,C', ['a', 'b', 'c'])['valid'])

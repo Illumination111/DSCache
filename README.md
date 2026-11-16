@@ -1,3 +1,5 @@
+> **MemInStream adaptation (2026-11-16):** [byte budgets, causal dataset driver, scoring, resume and environment notes](biocache_adapt/MEMINSTREAM.md).
+
 > **BioCache fork:** [Qwen2.5-VL-7B streaming adapter](biocache_adapt/QWEN25_STREAMING.md), with CPU integration tests and memory accounting.
 
 # DSCache
