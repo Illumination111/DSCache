@@ -111,6 +111,20 @@ class NativeQwenTests(unittest.TestCase):
         print(json.dumps({'method': a.policy.name, 'validation': 'native tiny Qwen vision + decoder',
                           'persistent_bytes': report['persistent'], 'status': 'passed'}))
 
+    def test_meminstream_supplied_prompt_reaches_tokenizer_unchanged(self):
+        from unittest.mock import patch
+        from .meminstream_prompts import build_request
+        a=self.adapter
+        request=build_request(dict(question='Which objects are visible?',query_time=0.,
+                                   options=['A. Apple','B. Bowl']))
+        with patch.object(a.processor,'tokenizer',wraps=a.processor.tokenizer) as tokenizer:
+            a.answer(request)
+        text=tokenizer.call_args_list[0].args[0]
+        self.assertIn(request['prompt'],text)
+        self.assertEqual(text.count('A. Apple'),1)
+        self.assertEqual(text.count('Select all correct options.'),1)
+        self.assertNotIn('Return only the correct option letter.',text)
+
     def test_native_retrieval_mask_is_causal(self):
         a = self.adapter
         selected = []

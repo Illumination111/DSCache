@@ -18,12 +18,14 @@ conda activate biocache-baseline-DSCache
 cd /data/user25101366/Baseline-for-BioCache/DSCache
 pip install -r biocache_adapt/requirements-qwen.txt
 python -m unittest biocache_adapt.test_qwen_stream \
-  biocache_adapt.test_meminstream_prompts biocache_adapt.test_meminstream_driver
+  biocache_adapt.test_meminstream_prompts biocache_adapt.test_meminstream_scoring \
+  biocache_adapt.test_meminstream_driver
 ```
 
 The tiny native-Qwen tests require the target checkpoint's local processor files.
 The end-to-end synthetic-video test also requires FFmpeg. It does not load 7B
-weights or use a GPU. Actual 7B GPU memory, throughput and accuracy are pending.
+weights or use a GPU. The 2026-11-17 real-7B acceptance passed on GPU 4; see
+`meminstream_validation_20261117.json`. Full benchmark accuracy is still pending.
 
 ## Budget definition
 
@@ -82,11 +84,15 @@ python -m biocache_adapt.meminstream --prepare-only --device cpu \
 ```
 
 This verifies 3,377 videos / 3,795 questions after excluding the two videos longer
-than 12 hours. The normalized question modes are 3,759 single-choice and 36
-multi-select. The dataset labels all rows `multiple-choice`; mode normalization
-uses explicit wording/metadata and label *container type*. No label values,
-answer content or correct-option count enter the model request. Single-choice
-requires one letter; multi-select requests comma-separated letters.
+than 12 hours. All choice questions now use the released `aligned_prompt_v2_20261020` template:
+select every correct option, with unknown answer cardinality. Neither GT values,
+label container types nor label lengths influence the request. The released
+prompt and choice parser are vendored with source snapshot hashes. Past dialogue
+supports both role/content events and question/answer rounds, and excludes events
+at or after the query time. Each prediction saves the exact model prompt.
+
+The earlier separated single/multi-choice protocol is superseded; do not resume
+its runs with this version. A request or scorer fingerprint mismatch is fatal.
 
 To run later, explicitly select a physical GPU by UUID, after checking resources:
 
@@ -141,12 +147,22 @@ not mean retaining full-video KV or forcing all recent frames into past KV.
 - `execution_revisions.jsonl`: code/settings at resume; old output stays intact.
 - `scoring/`: exact option-set accuracy, per-task groups and raw decisions.
 
-Scoring is the same objective option-set rule as the current common driver;
-`dataset_type_label_mismatch` flags the dataset's inconsistent type labels, not
-an incorrect prompt. It is not presented as the official OVO evaluator. Open
-answers, if added later, require separate semantic scoring; they are not guessed.
-The scorer is vendored from the local benchmark evaluation utility so a standalone
-fork checkout is sufficient. Test scores from random tiny models are not results.
+Scoring uses the released whole-response choice parser and exact option-set
+matching. A prose response is not reduced to its leading letter. Wrong, extra,
+missing and unparseable options count as wrong. `report.json` exposes:
+
+- `overall.accuracy`: sample micro accuracy over **all selected rows**.
+- `by_level1` / `by_level2`: category/task sample statistics.
+- `task_macro.by_level1[category].macro_accuracy`: equal-weight average of the
+  category's **level2** task accuracies; the full dataset has 17 such tasks.
+  `original_task` is source-dataset taxonomy, not these 17 tasks.
+
+For a running subset, missing predictions count in the displayed lower bounds;
+its final macro remains null. The driver passes `--finalized` when execution ends,
+so failures/missing rows remain in the final denominator as wrong. Invalid labels
+are exposed rather than removed. The result describes the selected dataset only;
+a complete 20-question smoke report is not the 3,795-question benchmark score.
+Open answers, if added later, require separate semantic scoring.
 
 A nonblocking per-run file lock prevents concurrent workers. Existing outputs
 require explicit resume, and fingerprint failures never overwrite saved annotations
@@ -162,3 +178,40 @@ upstream position-agnostic encoding or `ls_N` historical sampling. Those options
 are not silently emulated. The original core paths remain in the repository;
 real-7B smoke, memory calibration and paired benchmark comparisons are still
 required before publishing conclusions.
+
+## Reproduce the GPU acceptance
+
+The frozen list covers all four categories and 17 level2 tasks, a genuine
+multi-answer question, and a query after FIFO eviction. Selection favours short
+videos for acceptance speed and is not representative of benchmark accuracy.
+
+```bash
+python -m biocache_adapt.meminstream --device cuda:0 \
+  --output-dir outputs/meminstream_smoke_FRESH \
+  --selection-file biocache_adapt/fixtures/meminstream_smoke20_indices.json \
+  --budget-gib 1.75 --short-pairs 4
+python -m biocache_adapt.validate_meminstream_gpu --device cuda:0 \
+  --output-file outputs/meminstream_smoke_FRESH/gpu_equivalence.json
+```
+
+Set `CUDA_VISIBLE_DEVICES` to the intended physical GPU UUID first. The 2026-11-17
+run completed 20/20 questions and 20/20 videos, consumed 1,524 sampled frames and
+had no failures, invalid outputs or budget violations. Its accuracy was 2/20
+(10%); 16 replies selected multiple options. This does not establish an algorithm
+ranking or diagnose the cause of low full-benchmark accuracy.
+
+Maximum charged persistent/static state was 1,875,888,374 bytes, below the
+1,879,048,192-byte cap across 1,564 stable-state checks. One query followed 17 FIFO
+pair evictions. Peak CUDA allocation was 20.69 GiB; peak allocator reservation was
+21.13 GiB. Average full-query latency was 0.390 s, maximum 1.271 s. Diagnostic
+sampling throughput was about 9.23 frames/s (model load excluded; short-video mix).
+CPU affinity was two cores and process swap was zero. GPU work is synchronized
+for stage timing; temporary query KV and model workspaces remain outside the
+persistent cap and are reported separately.
+
+A separate real-7B no-eviction check compared decoupled prefill with dense
+sequential prefill using identical features and source positions. All 28 layers'
+K/V and next-token logits had maximum absolute difference 0. Repeated queries
+produced identical tokens without changing persistent tensors; a deliberately
+insufficient byte cap raised `MemoryError`. This verifies the native port's
+internal equivalence, not parity with upstream position-agnostic DSCache.

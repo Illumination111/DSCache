@@ -40,7 +40,7 @@ class DriverTests(unittest.TestCase):
             pred=[json.loads(x) for x in (out/'predictions.jsonl').read_text().splitlines()]
             done=[json.loads(x) for x in (out/'video_completion.jsonl').read_text().splitlines()]
             self.assertEqual(len(pred),1)
-            self.assertEqual(pred[0]['prompt_mode'],'single')
+            self.assertEqual(pred[0]['prompt_mode'],'official_unknown_cardinality')
             self.assertEqual(pred[0]['dscache_metrics']['frames_seen'],1,'future frame entered query history')
             self.assertEqual(done[0]['sampled_frames_consumed'],3)
             self.assertEqual(done[0]['decoded_source_frames'],11)

@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 
-from .meminstream_prompts import build_request, is_multiselect
+from .meminstream_prompts import build_request
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -56,6 +56,7 @@ def main():
     p.add_argument('--data-root',default='/data/user25101366/Benchmark-for-BioCache/MemInStream/data/MemInStream')
     p.add_argument('--budget-gib',type=float,choices=(0.875,1.3125,1.75),default=1.75)
     p.add_argument('--short-pairs',type=int,default=4)
+    p.add_argument('--selection-file',type=Path,help='Frozen JSON list of original annotation indices for a smoke/subset run')
     p.add_argument('--resume',action='store_true')
     p.add_argument('--prepare-only',action='store_true');args=p.parse_args()
     out=Path(args.output_dir);out.mkdir(parents=True,exist_ok=True)
@@ -74,6 +75,15 @@ def run(args,out):
     meta=json.loads((data/'statistics/video_metadata.json').read_text())
     excluded={x['file'] for x in meta if x['duration']>43200}
     selected=[(i,r) for i,r in enumerate(rows) if Path(r['video_path']).name not in excluded]
+    selection_file=getattr(args,'selection_file',None)
+    selection=None
+    if selection_file is not None:
+        selection=json.loads(Path(selection_file).read_text())
+        valid_indices={i for i,_ in selected}
+        if (not isinstance(selection,list) or not selection or
+            any(type(i) is not int or i not in valid_indices for i in selection) or len(set(selection))!=len(selection)):
+            raise ValueError('selection must contain unique eligible original annotation indices')
+        selected=[(i,r) for i,r in selected if i in set(selection)]
     filtered=[r for _,r in selected]
     groups={}
     for index,(original,row) in enumerate(selected):
@@ -90,10 +100,14 @@ def run(args,out):
               'sampling':'1 Hz grid, latest visible frame, actual relative video PTS',
               'generation':'greedy, native EOS, 256 max new tokens',
               'full_video_policy':'consume to decoder EOF after causal queries; all sampled pairs enter recent feature buffer; only expired recent pairs enter FIFO long KV; odd tail repeats last visible frame',
-              'options_prompt':'v2: single-choice returns exactly one letter; normalized multi-select returns all correct letters; no label values/count in model request',
+              'options_prompt':'official aligned_prompt_v2_20261020; all correct letters; unknown answer cardinality; no GT-dependent modes',
+              'selection_indices':selection,
+              'task_taxonomy':'level1 category / level2 fine-grained task (17); original_task is source taxonomy only',
+              'official_prompt_sha256':hashlib.sha256((ROOT/'biocache_adapt/meminstream_official_prompt.py').read_bytes()).hexdigest(),
+              'official_choices_sha256':hashlib.sha256((ROOT/'biocache_adapt/meminstream_official_choices.py').read_bytes()).hexdigest(),
               'prompt_builder_sha256':hashlib.sha256((ROOT/'biocache_adapt/meminstream_prompts.py').read_bytes()).hexdigest(),
-              'question_mode_counts':{'single':sum(not is_multiselect(r) for r in filtered),'multiple':sum(is_multiselect(r) for r in filtered)},
-              'dialogue':'only current sample supplied dialogue events visible by query time',
+              'prompt_mode_counts':{'official_unknown_cardinality':len(filtered)},
+              'dialogue':'official template: current sample dialogue_events/dialogue_history strictly before query time, including structured QA rounds',
               'gpu_environment':os.environ.get('CUDA_VISIBLE_DEVICES'),
               'adapter_sha256':{f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in (ROOT/'biocache_adapt').glob('*.py')},
               'policy_sha256':hashlib.sha256((ROOT/'biocache_adapt/qwen_policy.py').read_bytes()).hexdigest(),
@@ -104,7 +118,7 @@ def run(args,out):
     manifest=json.loads(json.dumps(manifest))
     if args.resume and (out/'manifest.json').exists():
         old=json.loads((out/'manifest.json').read_text())
-        for key in ['source_sha256','video_metadata_sha256','config','sampling','options_prompt','full_video_policy']:
+        for key in ['source_sha256','video_metadata_sha256','config','sampling','options_prompt','full_video_policy','selection_indices','prompt_builder_sha256','official_prompt_sha256','official_choices_sha256','scorer_sha256']:
             if old.get(key)!=manifest.get(key):raise ValueError(f'resume fingerprint mismatch: {key}')
         with (out/'execution_revisions.jsonl').open('a') as f:f.write(json.dumps(manifest,ensure_ascii=False)+'\n')
     else:save(out/'manifest.json',manifest)
@@ -170,19 +184,25 @@ def run(args,out):
                             lookahead=next(decoder,None)
                         if index in existing:continue
                         model.dialogue_events=[]
-                        for event in sorted(row.get('dialogue_events',[]),key=lambda e:float(e['time'])):
-                            if float(event['time'])<=query_time:
-                                model.inject_dialogue(float(event['time']),event['role'],event['content'])
-                        options=[re.sub(r'^[A-Z][.)]\s*','',str(x)) for x in (row.get('options') or [])]
+                        # The official prompt includes only dialogue strictly before query_time,
+                        # including structured question/answer rounds and dialogue_history.
                         progress.update(phase='answer',query_index=index,query_time=query_time);save(out/'progress.json',progress)
-                        request=build_request(row)
+                        request=build_request(row,end=model.last_timestamp if model.last_timestamp is not None else 0.)
+                        if model.device.type=='cuda':torch.cuda.synchronize(model.device)
+                        query_start=time.perf_counter()
                         response=model.answer(request)
+                        if model.device.type=='cuda':torch.cuda.synchronize(model.device)
+                        query_wall=time.perf_counter()-query_start
                         score=scorer.score(row,response,'skip')
                         if type(score['correct']) is bool:
                             scored+=1;correct+=int(score['correct'])
                         record=dict(row)
                         record['dscache_prediction']={'input_index':index,'original_input_index':original,'status':'completed','response':response,'score':score,'completed_at':now()}
-                        record['prompt_mode']='multiple' if request['multiple'] else 'single'
+                        record['prompt_mode']='official_unknown_cardinality'
+                        record['model_prompt']=request['prompt']
+                        record['prompt_version']=request['prompt_version']
+                        record['query_wall_seconds']=query_wall
+                        record['generated_tokens']=len(model.last_answer['token_ids'])
                         record['dscache_metrics']=model.report()
                         record['dscache_state']=model.policy.stats(model)
                         predictions.write(json.dumps(record,ensure_ascii=False)+'\n')
@@ -225,8 +245,8 @@ def run(args,out):
                             f.write(json.dumps({'time':now(),'video':path,'allocated':torch.cuda.memory_allocated(model.device),
                                                 'reserved':torch.cuda.memory_reserved(model.device)},ensure_ascii=False)+'\n')
                 progress['videos_completed']+=1;save(out/'progress.json',progress)
-        progress.update(phase='completed',finished_at=now());save(out/'progress.json',progress)
-        subprocess.run([sys.executable,str(evaluator_path),'--input',str(out/'annotations.json'),'--predictions',str(out/'predictions.jsonl'),'--output-dir',str(out/'scoring')],check=True)
+        progress.update(phase='completed',finished_at=now(),elapsed_seconds=time.time()-start);save(out/'progress.json',progress)
+        subprocess.run([sys.executable,str(evaluator_path),'--input',str(out/'annotations.json'),'--predictions',str(out/'predictions.jsonl'),'--output-dir',str(out/'scoring'),'--finalized'],check=True)
     except BaseException as exc:
         progress.update(phase='failed',error_type=type(exc).__name__,error=str(exc),finished_at=now());save(out/'progress.json',progress);raise
     finally:model.dispose()

@@ -289,6 +289,7 @@ class QwenStreamAdapter:
         self.timings = {'vision': 0., 'prefill': 0., 'query': 0.}
         self.policy.reset()
         self.budget_violation = None
+        self.budget_usage = {'checks': 0, 'last_bytes': 0, 'maximum_bytes': 0}
         self._active_query_cache = None
         self._workspace_peaks = {'prepared_vision_tensors': 0, 'query_kv': 0}
         self._initialized = False
@@ -373,8 +374,10 @@ class QwenStreamAdapter:
             self.frames_seen += 1
             if len(self.pending) == 2:
                 features, positions, grid = self._prepare_pair(self.pending)
+                if self.device.type == 'cuda': torch.cuda.synchronize(self.device)
                 start = time.perf_counter()
                 self.policy.ingest(self, features, positions, grid)
+                if self.device.type == 'cuda': torch.cuda.synchronize(self.device)
                 self.timings['prefill'] += time.perf_counter() - start
                 self.next_position = max(self.next_position, int(positions.max()) + 1)
                 self.pending.clear()
@@ -418,6 +421,7 @@ class QwenStreamAdapter:
             converted.append(frame.resize(target))
         if converted[0].size != converted[1].size:
             raise ValueError('a video must keep a constant decoded frame size')
+        if self.device.type == 'cuda': torch.cuda.synchronize(self.device)
         start = time.perf_counter()
         batch = self.processor.video_processor(videos=[converted], return_tensors='pt', do_resize=False,
                                                 do_sample_frames=False)
@@ -432,6 +436,7 @@ class QwenStreamAdapter:
         positions = positions[:, :, 1:-1] - 1 + self.video_origin
         tokens_per_second = getattr(self.model.config.vision_config, 'tokens_per_second', 2)
         positions[0] = self.video_origin + round(frames[0][0] * tokens_per_second)
+        if self.device.type == 'cuda': torch.cuda.synchronize(self.device)
         self.timings['vision'] += time.perf_counter() - start
         prepared = storage_report([pixels, features, positions, grid])
         self._workspace_peaks['prepared_vision_tensors'] = max(
@@ -442,11 +447,13 @@ class QwenStreamAdapter:
     def answer(self, query, query_time=None, options=None, multiple=False):
         if self.stream_id is None:
             raise RuntimeError('open_stream first')
+        supplied_prompt = None
         if not isinstance(query, str):
             getter = query.get if isinstance(query, dict) else lambda name, default=None: getattr(query, name, default)
             query_time = getter('query_time', query_time)
             options = getter('options', options)
             multiple = getter('multiple', multiple)
+            supplied_prompt = getter('prompt')
             query = getter('question')
         if query_time is None:
             query_time = self.last_timestamp if self.last_timestamp is not None else 0.
@@ -456,8 +463,10 @@ class QwenStreamAdapter:
             raise ValueError('question must be nonempty text')
         if self.dialogue_events and self.dialogue_events[-1]['timestamp'] > query_time:
             raise ValueError('dialogue contains future events')
-        prompt = query
-        if options:
+        if supplied_prompt is not None and (not isinstance(supplied_prompt, str) or not supplied_prompt.strip()):
+            raise ValueError('prompt must be nonempty text')
+        prompt = query if supplied_prompt is None else supplied_prompt
+        if options and supplied_prompt is None:
             prompt += '\n' + '\n'.join(f'{chr(65+i)}. {option}' for i, option in enumerate(options))
             prompt += '\nReturn ' + ('all correct option letters, comma-separated.' if multiple else 'only the correct option letter.')
         prefix = '<|vision_end|>\n'
@@ -468,6 +477,7 @@ class QwenStreamAdapter:
         ids = self.processor.tokenizer(prefix + prompt + '<|im_end|>\n<|im_start|>assistant\n',
                                        return_tensors='pt', add_special_tokens=False)['input_ids'].to(self.device)
         embeddings = self.embedding(ids)
+        if self.device.type == 'cuda': torch.cuda.synchronize(self.device)
         start = time.perf_counter()
         cache = self.policy.query_cache(self, embeddings)
         self._active_query_cache = cache
@@ -502,6 +512,7 @@ class QwenStreamAdapter:
         query_bytes = storage_report(self._active_query_cache)
         self._workspace_peaks['query_kv'] = max(self._workspace_peaks['query_kv'], query_bytes['cpu'] + query_bytes['cuda'])
         self._active_query_cache = None
+        if self.device.type == 'cuda': torch.cuda.synchronize(self.device)
         self.timings['query'] += time.perf_counter() - start
         if hasattr(self.policy, 'finish_query'):
             self.policy.finish_query()
@@ -528,6 +539,9 @@ class QwenStreamAdapter:
         if self.config.total_budget_bytes is None:
             return
         used = storage_report({'persistent': self.persistent_state(), 'static_extra': self.static_extra_state()})['total']
+        self.budget_usage['checks'] += 1
+        self.budget_usage['last_bytes'] = used
+        self.budget_usage['maximum_bytes'] = max(self.budget_usage['maximum_bytes'], used)
         if used > self.config.total_budget_bytes:
             self.budget_violation = {'used': used, 'limit': self.config.total_budget_bytes}
             raise MemoryError(f'{self.policy.name}: persistent + extra static bytes {used} exceed total budget '
@@ -559,6 +573,7 @@ class QwenStreamAdapter:
                 'cuda_peak_allocated': torch.cuda.max_memory_allocated(self.device) if self.device.type == 'cuda' else 0,
                 'cuda_peak_reserved': torch.cuda.max_memory_reserved(self.device) if self.device.type == 'cuda' else 0,
                 'disk_history_bytes': 0, 'budget_violation': self.budget_violation,
+                'budget_usage': dict(self.budget_usage),
                 'budget_mode': 'tracked-growth' if self.config.total_budget_bytes is None else 'strict-total-bytes',
                 'metadata_accounting': 'recursive sys.getsizeof estimate; tensor/array backing storage deduplicated',
                 'config': asdict(self.config)}

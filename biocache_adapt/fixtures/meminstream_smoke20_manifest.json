@@ -1,0 +1,151 @@
+{
+  "selection_policy": "Minimum-duration video coverage of 17 level2 tasks; add genuine multi-answer and query after 400s at >=168 visual tokens/pair; fill 20 preferring selected videos. Frozen before predictions; diagnostic only.",
+  "annotation_sha256": "003fd5ab1d080c45a223916633555f87ffe0a1ef2a4f49e08b422a89eac83b20",
+  "selection_sha256": "cdf4b562aa18532dcaa95a4e81ced9c893f7e24e183cb20842cabb40df324845",
+  "questions": 20,
+  "videos": 20,
+  "source_duration_seconds": 1523.604807,
+  "task_count": 17,
+  "selected": [
+    {
+      "original_index": 198,
+      "level1": "Episodic Retrieval",
+      "level2": "Temporal Fact Recall",
+      "query_time": 300,
+      "video": "./videos/1088965976134928_start_0.0_end_300.0__6dadb219f702decb5076ffd419815c01fa029661b860305f85585c2aa3873b66.mp4"
+    },
+    {
+      "original_index": 1758,
+      "level1": "Episodic Retrieval",
+      "level2": "Attribute Recall",
+      "query_time": 44,
+      "video": "./videos/269__c9d1b266bbdce68e6273f375c260f2f0f0debeed9f68fb81cfd6bcd374e75843.mp4"
+    },
+    {
+      "original_index": 1759,
+      "level1": "Episodic Retrieval",
+      "level2": "Spatial / Location Recall",
+      "query_time": 76,
+      "video": "./videos/277__40c9087e49cc9fcc4ce25ac1996e4770bd941f5522e9d6b240a9f75b87f3df4b.mp4"
+    },
+    {
+      "original_index": 1763,
+      "level1": "Episodic Retrieval",
+      "level2": "Entity / Object Recall",
+      "query_time": 10,
+      "video": "./videos/602__f5b9740b5d98de578c8c19e886e697553baa0f9136ee83415c7712d0e6b93eb1.mp4"
+    },
+    {
+      "original_index": 1767,
+      "level1": "Episodic Retrieval",
+      "level2": "Action / Event Recall",
+      "query_time": 36.5,
+      "video": "./videos/1298__aaf52026e864a6521905d3367dbc52b20fb8762ccf5d4ce57dd134c674d23b77.mp4"
+    },
+    {
+      "original_index": 2181,
+      "level1": "Multi-Evidence Integration",
+      "level2": "Temporal Ordering",
+      "query_time": 405.0,
+      "video": "./videos/myEJT1kUdFU_start_0.0_end_405.0__69edbb7fc071dfbbca1c9d3b287c085ae4ae0a7ac6287b5acb98b768e76ec9ae.mp4"
+    },
+    {
+      "original_index": 2259,
+      "level1": "State Tracking & Updating",
+      "level2": "Identity & State Persistence",
+      "query_time": 45.0,
+      "video": "./videos/BQsi6YNMqlI_start_0.0_end_45.0__79f494fae24cb39f326a0ac7578568b4a280c3c2d5083686ad347606b74f531b.mp4"
+    },
+    {
+      "original_index": 2320,
+      "level1": "State Tracking & Updating",
+      "level2": "Latest-State Retrieval",
+      "query_time": 38.0,
+      "video": "./videos/H8zpilJ-wgM_start_0.0_end_38.0__34c8130a5222e1cb9959fef6787b83f1d54ef3cc7a3c00bdb03b1df29e8b47a5.mp4"
+    },
+    {
+      "original_index": 2412,
+      "level1": "Multi-Evidence Integration",
+      "level2": "Multi-hop Memory Binding",
+      "query_time": 109.0,
+      "video": "./videos/0gpJgdvNGJk_start_0.0_end_109.0__4d910baa23902cbe68847f7b8c6d7bcb4bbd7d70290d23c0c14b3646ee9f04bf.mp4"
+    },
+    {
+      "original_index": 2521,
+      "level1": "Episodic Retrieval",
+      "level2": "Occurrence Verification",
+      "query_time": 18.0,
+      "video": "./videos/ZOaZ5_qt674_start_0.0_end_18.0__910cbab2820135d45c31a2b838ac2139ad33469a2232c89cbbc87bffd7e33e21.mp4"
+    },
+    {
+      "original_index": 2567,
+      "level1": "State Tracking & Updating",
+      "level2": "State Transition Tracking",
+      "query_time": 48.0,
+      "video": "./videos/DfWR6owoRI0_start_0.0_end_48.0__c6ec04a07be3a55fd1e24401ea4873233dd31388a2e3b05569526be2f0ab56fb.mp4"
+    },
+    {
+      "original_index": 2651,
+      "level1": "Multi-Evidence Integration",
+      "level2": "Temporal Ordering",
+      "query_time": 48.0,
+      "video": "./videos/3iamMO5rS9I_start_0.0_end_48.0__1f2eb77081e61546ee991b4c77bf27f035322d634311fe45ae017035a9f40d45.mp4"
+    },
+    {
+      "original_index": 2685,
+      "level1": "Multi-Evidence Integration",
+      "level2": "Counting",
+      "query_time": 8,
+      "video": "./videos/1570_0__d527cebd1836b760e1977a6e160f2fff80f0b6dfe7b438ee2b43769ff079f8a3.mp4"
+    },
+    {
+      "original_index": 2697,
+      "level1": "Multi-Evidence Integration",
+      "level2": "Counting",
+      "query_time": 7,
+      "video": "./videos/1580_0__f392d5c1807f6d4d0fa37bbe161bf99b0e9818a54badbfec10ae71bc99187a5f.mp4"
+    },
+    {
+      "original_index": 3217,
+      "level1": "Episodic Retrieval",
+      "level2": "Occurrence Verification",
+      "query_time": 20.0,
+      "video": "./videos/tEWYm3zFhGM_start_0.0_end_20.0__f7e79233b42e41910c1cda95afb6c87a5b2d54c0ba1d6fa0e56ce856bfa8188c.mp4"
+    },
+    {
+      "original_index": 3370,
+      "level1": "State Tracking & Updating",
+      "level2": "Correction / Revision Memory",
+      "query_time": 40.0,
+      "video": "./videos/-XJD_SHBybg_start_0.0_end_40.0__dd9dd454e554899140c3736feac5ae810241a1ca1af345150153bf29bdc23ee2.mp4"
+    },
+    {
+      "original_index": 3441,
+      "level1": "Multi-Evidence Integration",
+      "level2": "Cross-Time Comparison",
+      "query_time": 45.0,
+      "video": "./videos/7Q12J_h_qeA_start_0.0_end_45.0__226b820c27b470f77714366662789461c3145875103c4663c7cc274a3c196944.mp4"
+    },
+    {
+      "original_index": 3543,
+      "level1": "Multi-Evidence Integration",
+      "level2": "Sequential Action Integration",
+      "query_time": 75.0,
+      "video": "./videos/2vFdwz4U1VQ_start_0.0_end_75.0__02f0314261e6f3938dff4754ba865285162a5079484ad927529874c76667cad0.mp4"
+    },
+    {
+      "original_index": 3694,
+      "level1": "Contextual Memory",
+      "level2": "Conversational Context Memory",
+      "query_time": 107.0,
+      "video": "./videos/ks83UksLbmg_start_0.0_end_107.0__79a7ba2172279757dac7fc473705755d2ed24b2ccb385f31593aba38aa159a3a.mp4"
+    },
+    {
+      "original_index": 3789,
+      "level1": "Contextual Memory",
+      "level2": "Entity–Identity Binding",
+      "query_time": 44.0,
+      "video": "./videos/zQACBFLGkSg_start_0.0_end_44.0__bc22fd300450e9f28d4cfb42fc60f2b2d6fd2f830931c8c60b7d0644e0af128c.mp4"
+    }
+  ]
+}

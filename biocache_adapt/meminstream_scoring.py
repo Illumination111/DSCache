@@ -7,6 +7,13 @@ import json
 from pathlib import Path
 import re
 import unicodedata
+import sys
+
+if __package__:
+    from .meminstream_official_choices import parse_choice
+else:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from biocache_adapt.meminstream_official_choices import parse_choice
 
 
 def read_rows(path):
@@ -20,19 +27,8 @@ def norm(value):
 
 
 def choices(value, n):
-    if isinstance(value, list):
-        value = ",".join(str(v) for v in value)
-    value = str(value or "").strip().upper()
-    value = re.sub(r"^(?:THE\s+)?(?:CORRECT\s+)?(?:ANSWER|OPTION|答案|选项)\s*[:：]?\s*", "", value)
-    value = value.replace("**", "").replace("`", "")
-    valid = set(chr(65 + i) for i in range(n))
-    if re.fullmatch(r"[A-Z\s,，;/&+、()\[\].。]+", value):
-        found = set(re.findall(r"[A-Z]", value))
-        if found and found <= valid:
-            return found
-    # Accept an explicit leading option with explanation; never mine prose for letters.
-    match = re.match(r"^([A-Z])[.。:：)]\s*", value)
-    return {match[1]} if match and match[1] in valid else None
+    # Exactly the released parser, with placeholder option text for labels only.
+    return parse_choice(value, [f'__option_{i}__' for i in range(n)])
 
 
 def binary(value):
@@ -60,12 +56,8 @@ def score(row, response, open_mode, supplied=None):
                 expected = {chr(65 + i) for i in indices}
         if not expected:
             return dict(correct=None, method="invalid_label")
-        predicted = choices(response, len(opts))
-        if predicted is None:
-            matches = [chr(65+i) for i, option in enumerate(opts)
-                       if norm(response) == norm(re.sub(r"^[A-Z][.)]\s*", "", str(option)))]
-            if len(matches) == 1:
-                predicted = set(matches)
+        option_text = [re.sub(r'^[A-Z][.)]\s*', '', str(x)).strip() for x in opts]
+        predicted = parse_choice(response, option_text)
         return dict(correct=predicted == expected, method="option_set",
                     expected=sorted(expected), predicted=sorted(predicted) if predicted else None,
                     format_valid=predicted is not None,
@@ -94,6 +86,7 @@ def stats(items):
     return dict(total=len(items), completed=completed, missing=len(items)-completed,
                 coverage=completed/len(items) if items else None, scored=len(scored),
                 unscored_completed=completed-len(scored), correct=correct,
+                accuracy=correct/len(items) if items else None,
                 accuracy_scored=correct/len(scored) if scored else None,
                 correct_over_total_lower_bound=correct/len(items) if items else None,
                 invalid_format=sum(r.get("format_valid") is False for r in items))
@@ -106,11 +99,43 @@ def grouped(items, field):
     return {key: stats(value) for key, value in sorted(groups.items())}
 
 
+def task_macro_report(items, finalized=False):
+    """Each level2 task has equal weight within its level1 category.
+
+    All selected samples count in task denominators, including missing/failed
+    predictions. Incomplete categories expose a lower bound; their final macro
+    accuracy remains null until every sample has a scored prediction or the
+    caller explicitly finalizes the run (failures then count as wrong).
+    """
+    categories = defaultdict(lambda: defaultdict(list))
+    for row in items:
+        categories[str(row.get('level1') or 'unknown')][str(row.get('level2') or 'unknown')].append(row)
+    report = {}
+    for category, tasks in sorted(categories.items()):
+        task_stats = {}
+        for task, rows in sorted(tasks.items()):
+            summary = stats(rows)
+            summary['accuracy'] = summary['correct_over_total_lower_bound']
+            summary['complete'] = all(r['status'] == 'completed' and type(r.get('correct')) is bool for r in rows)
+            task_stats[task] = summary
+        complete = all(t['complete'] for t in task_stats.values())
+        lower = sum(t['accuracy'] for t in task_stats.values()) / len(task_stats)
+        report[category] = dict(tasks=task_stats, task_count=len(task_stats),
+                                complete=complete, finalized=finalized, macro_accuracy=lower if complete or finalized else None,
+                                macro_accuracy_lower_bound=lower,
+                                sample_micro=stats([r for rows in tasks.values() for r in rows]))
+    return dict(task_field='level2', category_field='level1', finalized=finalized,
+                missing_policy='All selected samples in denominator; failed/missing/invalid-format count as wrong. Incomplete running macro is null; --finalized includes failed/missing as wrong.',
+                task_count=sum(c['task_count'] for c in report.values()),
+                by_level1=report)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--input", required=True, type=Path)
     p.add_argument("--predictions", required=True, type=Path)
     p.add_argument("--output-dir", required=True, type=Path)
+    p.add_argument("--finalized", action="store_true", help="Run has ended: missing/failed samples count as wrong in final task macros")
     p.add_argument("--open-ended", choices=("skip", "exact"), default="skip")
     p.add_argument("--open-scores", type=Path, help="Reviewed JSONL: input_index, response, correct (boolean)")
     args = p.parse_args()
@@ -169,9 +194,10 @@ def main():
                   objective_by_dataset=grouped([r for r in details if r["objective"]], "source_dataset"),
                   by_question_type=grouped(details, "question_type"),
                   by_task=grouped(details, "original_task"),
+                  task_macro=task_macro_report(details, finalized=args.finalized),
                   by_level1=grouped(details, "level1"), by_level2=grouped(details, "level2"),
                   dataset_type_label_mismatches=sum(r.get("dataset_type_label_mismatch", False) for r in details),
-                  notes=["Rates are 0..1. accuracy_scored excludes missing/unscored rows.",
+                  notes=["Rates are 0..1. Primary accuracy uses all selected samples; accuracy_scored is diagnostic and excludes missing/unscored rows.",
                          "Missing predictions include failed and not-yet-run samples; these cannot be distinguished from predictions alone.",
                          "correct_over_total_lower_bound counts all missing/unscored as wrong; it is not full semantic accuracy.",
                          "Open exact match is a string metric, not semantic correctness."])

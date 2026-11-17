@@ -1,19 +1,18 @@
-"""Build model-only requests; normalize the dataset's mislabeled choice types."""
-import re
+"""Official unknown-cardinality choice prompt, independent of answer labels."""
+from .meminstream_official_prompt import make_prompt, options, seconds, PROMPT_VERSION
 
 
-def is_multiselect(row):
-    # Dataset question_type is "multiple-choice" even for multi-select samples.
-    # Use explicit wording/metadata and label CONTAINER TYPE only, never label
-    # values or the number of correct answers in the model prompt.
-    return (row.get('question_type') == 'multiple-select'
-            or row.get('QA_type') == 'mc_multi'
-            or bool(re.search(r'多选|select\s+all|choose\s+all', row['question'], re.I))
-            or isinstance(row.get('correct_index'), list)
-            or isinstance(row.get('correct_option'), list))
-
-
-def build_request(row):
-    return {'question': row['question'], 'query_time': float(row['query_time']),
-            'options': [re.sub(r'^[A-Z][.)]\s*', '', str(x)) for x in (row.get('options') or [])],
-            'multiple': is_multiselect(row)}
+def build_request(row, start=0., end=None):
+    # Only model-visible fields enter the released prompt. GT, evidence and task
+    # metadata are never used, including their types or lengths.
+    visible = {key: row[key] for key in
+               ('question', 'query_time', 'options', 'dialogue_events', 'dialogue_history', 'question_type')
+               if key in row}
+    query_time = seconds(visible['query_time'])
+    end = query_time if end is None else float(end)
+    if not 0 <= start <= end <= query_time:
+        raise ValueError('invalid causal prompt interval')
+    return {'question': visible['question'], 'query_time': query_time,
+            'options': options(visible), 'multiple': True,
+            'prompt': make_prompt(visible, float(start), end),
+            'prompt_version': PROMPT_VERSION}

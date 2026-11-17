@@ -52,5 +52,7 @@
   "legacy_dry_run": {
     "passed": true,
     "model_loaded": false
-  }
+  },
+  "latest_meminstream_validation": "meminstream_validation_20261117.json",
+  "historical_record_note": "The timestamped 2026-11-16 fields below describe the earlier CPU-only, separated-choice-protocol version. See latest_meminstream_validation for 18 CPU tests and real-7B official-prompt acceptance on 2026-11-17."
 }
