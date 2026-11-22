@@ -58,8 +58,6 @@ class StreamConfig:
                 raise ValueError(f'{name} must be positive')
         if self.decoded_frame_reserve_bytes < 0 or self.budget_metadata_reserve_bytes < 0:
             raise ValueError('budget reserves must be nonnegative')
-        if not 1 <= self.cpu_threads <= 2:
-            raise ValueError('at most two CPU threads are allowed')
         if self.quant_bits not in (2, 4):
             raise ValueError('quant_bits must be 2 or 4')
         if not 0 < self.retrieval_ratio <= 1 or not 0 <= self.scatter_ratio <= 1:
@@ -77,9 +75,9 @@ class StreamConfig:
 
 
 def limit_cpu(n=2):
-    """Pin this process and subsequently spawned workers to at most two CPUs."""
-    if not 1 <= n <= 2:
-        raise ValueError('CPU limit must be 1 or 2')
+    """Pin this process and spawned workers to the requested CPU count."""
+    if type(n) is not int or n < 1:
+        raise ValueError('CPU count must be a positive integer')
     if hasattr(os, 'sched_getaffinity'):
         allowed = sorted(os.sched_getaffinity(0))
         selected = allowed[:n]
